@@ -181,6 +181,8 @@ textarea{width:100%;min-height:150px;border:2px solid var(--line);border-radius:
       <button class="btn primary" id="dl-save" type="button" style="flex:1"></button>
       <button class="btn" id="dl-copy" type="button" style="flex:1"></button>
     </div>
+    <button class="btn" id="dl-video" type="button"></button>
+    <p class="tip" id="dl-vtip">Video del giro: lo que elijas en la tarjeta "Temas, letras, historia y video" (por defecto 1 vuelta del logo, formato historia).</p>
     <button class="btn" id="dl-text" type="button"></button>
     <textarea id="dl-area" readonly hidden aria-label="Texto del menú para copiar"></textarea>
     <p class="tip">Si el botón no funciona, mantén presionada la imagen (o clic derecho) y elige <strong>Guardar imagen</strong>.</p>
@@ -378,7 +380,7 @@ function drawCover(c,im,x,y,w,h){var r=Math.max(w/im.naturalWidth,h/im.naturalHe
 var LAYOUT={};
 function parseRows(items){return items.filter(function(i){return i.t&&i.t.trim()}).map(function(i){var m=i.t.match(/^(.*?)\s*\((.*)\)\s*$/);var has=m&&m[1];
   return{u:i.u,main:(has?m[1]:i.t).trim(),note:has?m[2].trim():'',p:fmtPrice(i.p),star:!!i.star,out:!!i.out,icon:i.i||null}})}
-function drawList(c,id,st,cfg){c.save();c.beginPath();c.rect(cfg.xCheck-cfg.cr-8,cfg.yTop-8,cfg.xMax-cfg.xCheck+cfg.cr+18,cfg.yBot-cfg.yTop+16);c.clip();drawList0(c,id,st,cfg);c.restore()}
+function drawList(c,id,st,cfg){cfg=Object.assign({},cfg,{yTop:cfg.yTop+(st.tg||0)});c.save();c.beginPath();c.rect(cfg.xCheck-cfg.cr-8,cfg.yTop-8,cfg.xMax-cfg.xCheck+cfg.cr+18,cfg.yBot-cfg.yTop+16);c.clip();drawList0(c,id,st,cfg);c.restore()}
 function drawList0(c,id,st,cfg){
   var rows=parseRows(st.items),size=cfg.size,lh=cfg.lh*(st.ls||1);
   function mf(z){return '700 '+z+'px '+F_HAND}
@@ -514,7 +516,7 @@ function dSandwiches(c,st){
   parchment(c,545,562,455,215,32);
   brush(c,535,462,470,88,TH('#C4121F'),'rgba(70,0,0,.6)',31,5,14);sparkFan(c,576,510,180);sparkFan(c,966,490,0);
   var f=function(z){return 'italic 700 '+z+'px '+F_SCRIPT};titleIn(c,st.title,f,62,770,497,350,78,TT_LIGHT);
-  drawList(c,'sandwiches',st,{xCheck:602,xText:638,xMax:988,yTop:537,yBot:766,size:44,lh:55,cr:23})}
+  drawList(c,'sandwiches',st,{xCheck:602,xText:638,xMax:988,yTop:570,yBot:768,size:44,lh:55,cr:23})}
 function dTripletas(c,st){
   parchment(c,545,790,455,138,42);
   brush(c,540,765,465,98,TH('#C4121F'),'rgba(70,0,0,.6)',41,4,12);
@@ -791,7 +793,7 @@ function pressRow(b,label,opts,get,set){b.append(el('span',{class:'lab',text:lab
 function applyPack(v,st){var p=PACKS.filter(function(x){return x[0]===v})[0][2];st.pack=v;var ids=Object.keys(FONT_IDS);ids.forEach(function(id){S.b[id].font=p[id]||''});
   Promise.all(ids.map(function(id){return ensureFont(S.b[id].font)})).then(function(){render()});ids.forEach(function(id){rebuildCard(id)});changed();toast('Letras cambiadas. Cada cuadro todavía se puede ajustar en su tarjeta.')}
 var SPIN_SETS=[['logo','Solo el logo'],['sun','Solo el sol'],['clock','Solo el reloj'],['phone','Solo el ícono del teléfono'],['flower','Solo la flor'],['all','El logo y todos los íconos a la vez']];
-var recording=false;
+var recording=false,VIDSEL={set:'logo',fmt:'story',turns:1,dir:1,fx:'3d',speed:0};
 function recordSpin(o){
   if(recording)return;if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){toast('Este navegador no puede grabar video. Usa Google Chrome.');return}
   var all=['logo','sun','clock','phone','flower','leaf1','leaf2','leaf3'],ids=(o.set==='all'?all:[o.set]).filter(function(id){return S.b[id]&&S.b[id].on});
@@ -799,17 +801,17 @@ function recordSpin(o){
   var story=o.fmt==='story',cw=story?1080:1024,ch=story?1920:1536,cvR=cvOf(cw,ch),g=cvR.getContext('2d'),types=['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'],mt='',i;
   for(i=0;i<types.length;i++)if(MediaRecorder.isTypeSupported(types[i])){mt=types[i];break}
   var rec;try{rec=new MediaRecorder(cvR.captureStream(30),mt?{mimeType:mt,videoBitsPerSecond:6000000}:undefined)}catch(e){toast('No pude iniciar la grabación en este navegador.');return}
-  var chunks=[],saved=ids.map(function(id){return S.b[id].rot||0}),dur=(S.b[ids[0]].spd||1.8)*1000*o.turns,hold=600,total=dur+hold*2,t0=0;
-  function restore(){ids.forEach(function(id,k){S.b[id].rot=saved[k]});recording=false;render();updBtn()}
+  var chunks=[],saved=ids.map(function(id){return S.b[id].rot||0}),dur=(o.speed||S.b[ids[0]].spd||1.8)*1000*o.turns,fxs=ids.map(function(id){return[S.b[id].d3,S.b[id].shine]}),hold=600,total=dur+hold*2,t0=0;
+  function restore(){ids.forEach(function(id,k){S.b[id].rot=saved[k];S.b[id].d3=fxs[k][0];S.b[id].shine=fxs[k][1]});recording=false;render();updBtn()}
   rec.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
   rec.onstop=function(){restore();var blob=new Blob(chunks,{type:mt||'video/webm'});if(!blob.size){toast('La grabación salió vacía. Intenta otra vez.');return}
     dlBlob(blob,'fondita-giro-'+S.b.date.iso+'.'+(/mp4/.test(mt)?'mp4':'webm'));toast(/mp4/.test(mt)?'Video listo en tus Descargas (MP4).':'Video listo en tus Descargas (WebM). Si WhatsApp no lo acepta, conviértelo a MP4.')};
   function frame(now){try{if(!t0)t0=now;var e=now-t0,p=Math.min(1,Math.max(0,(e-hold)/dur));
       ids.forEach(function(id,k){var v=saved[k]+o.dir*360*o.turns*p;S.b[id].rot=((v+180)%360+360)%360-180});
-      g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cw,ch);paintExport(g,o.fmt,cw/W);
+      g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cw,ch);paintExport(g,o.fmt,cw/W);updBtn(Math.min(100,Math.round(e/total*100)));
       if(e<total)requestAnimationFrame(frame);else rec.stop()}catch(err){try{rec.stop()}catch(x){}restore();toast('Algo falló al grabar. Intenta otra vez.')}}
-  recording=true;updBtn();rec.start();toast('Grabando ('+Math.round(total/1000)+' s). No cambies de pestaña.');requestAnimationFrame(frame);
-  function updBtn(){var bt=$('#vid-go');if(bt)bt.disabled=recording}}
+  if(o.fx==='3d')ids.forEach(function(id){S.b[id].d3=true;S.b[id].shine=true});recording=true;updBtn(0);rec.start();toast('Grabando ('+Math.round(total/1000)+' s). No cambies de pestaña.');requestAnimationFrame(frame);
+  function updBtn(pct){['#vid-go','#dl-video'].forEach(function(q){var bt=$(q);if(!bt)return;bt.disabled=recording;var t=bt.lastChild;if(!t)return;if(!bt.dataset.l)bt.dataset.l=t.textContent;t.textContent=recording?'Grabando… '+(pct||0)+'%':bt.dataset.l})}}
 function extrasUI(b,st){
   b.append(el('p',{class:'tip',text:'Todo es opcional: toca lo que quieras usar. Se puede quitar o cambiar cuando quieras.'}));
   pressRow(b,'1. Tema de colores',THEMES.map(function(t){return[t[0],t[1]]}),function(){return st.theme||'clasico'},function(v){st.theme=v;changed()});
@@ -819,15 +821,15 @@ function extrasUI(b,st){
   checkbox(b,'Sello del día con el plato destacado (se actualiza solo con el menú)',S.b.badge,'auto',function(v){S.b.badge.on=v;syncShow('badge');rebuildCard('badge')});
   b.append(el('span',{class:'lab',text:'4. Imagen para historias de WhatsApp e Instagram (9:16)'}),
     el('button',{type:'button',class:'btn',onclick:function(){$('#dl-fmt').value='story';openSave()}},icon('download'),'Guardar como historia 9:16'));
-  var sel={set:'logo',fmt:'story',turns:1,dir:1};
+  var sel=VIDSEL;
   function mkSel(label,opts,key,num){var id=uid(),s=el('select',{id:id});opts.forEach(function(o){s.append(el('option',{value:o[0],text:o[1]}))});s.value=sel[key];
     s.addEventListener('change',function(){sel[key]=num?+s.value:s.value});return el('div',{class:'styl'},el('label',{for:id,class:'lab',text:label}),s)}
   b.append(el('span',{class:'lab',text:'5. Video del giro (para estados o redes). La velocidad se escoge en la tarjeta de cada ícono.'}),
-    mkSel('Qué gira',SPIN_SETS,'set'),mkSel('Formato',[['story','Historia 9:16'],['flyer','Flyer 2:3']],'fmt'),mkSel('Vueltas',[[1,'1 vuelta'],[2,'2 vueltas'],[3,'3 vueltas']],'turns',true),mkSel('Sentido',[[1,'Izquierda ↺'],[-1,'Derecha ↻']],'dir',true),
-    el('button',{type:'button',class:'btn primary',id:'vid-go',onclick:function(){recordSpin(sel)}},icon('eye'),'Grabar video del giro'))}
+    mkSel('Qué gira',SPIN_SETS,'set'),mkSel('Formato',[['story','Historia 9:16'],['flyer','Flyer 2:3']],'fmt'),mkSel('Vueltas',[[1,'1 vuelta'],[2,'2 vueltas'],[3,'3 vueltas']],'turns',true),mkSel('Sentido',[[1,'Izquierda ↺'],[-1,'Derecha ↻']],'dir',true),mkSel('Efecto',[['3d','3D con grosor y destello (recomendado)'],['flat','Giro plano simple']],'fx'),mkSel('Velocidad del video',[[0,'La que tenga el logo']].concat(SPEEDS),'speed',true),
+    el('button',{type:'button',class:'btn primary',id:'vid-go',onclick:function(){recordSpin(sel)}},icon('eye'),'Grabar video del giro'),el('p',{class:'tip',text:'El video baja a tus Descargas. En Chrome sale en MP4. Dura unos segundos y no debes cambiar de pestaña mientras graba.'}))}
 UI.extras=extrasUI;
 function styleUI(body,st,id){
-  var det=el('details',{class:'pos'},el('summary',{text:'Estilo de letra y espacio entre líneas'})),w=el('div',{class:'styl'});
+  var det=el('details',{class:'pos'},el('summary',{text:'Letra, espacio entre líneas y separación'})),w=el('div',{class:'styl'});
   if(FONT_IDS[id]){var sid=uid(),sel=el('select',{id:sid});FONTS.forEach(function(f){var o=el('option',{value:f[0],text:f[1]});if(f[0]===(st.font||''))o.selected=true;sel.append(o)});
     sel.addEventListener('change',function(){st.font=sel.value;ensureFont(st.font).then(function(){render()});changed()});
     w.append(el('label',{for:sid,class:'lab',text:'Estilo de letra'}),sel)}
@@ -836,6 +838,8 @@ function styleUI(body,st,id){
     r.addEventListener('input',function(){st.ls=+r.value;u();changed()});
     w.append(lab,r,el('button',{type:'button',class:'btn sm',onclick:function(){st.ls=1;r.value=1;u();changed()}},icon('reset'),'Espacio normal'),
       el('p',{class:'tip',text:'Si subes mucho el espacio en una lista, la letra se achica sola para que todo quepa.'}))}
+  if(id==='menu'||id==='sandwiches'||id==='complementos'){var tid=uid(),tr=el('input',{id:tid,type:'range',min:0,max:50,step:2,value:st.tg||0}),tl=el('label',{for:tid,class:'lab'});
+    var tu=function(){tl.textContent='Separación debajo de la cinta del título: '+(st.tg||0)+' px'};tu();tr.addEventListener('input',function(){st.tg=+tr.value;tu();changed()});w.append(tl,tr)}
   det.append(w);body.append(det)}
 function makeCard(d){
   var st=ST(d.id),card=el('article',{class:'card','data-id':d.id,'data-open':'false','data-locked':String(!!st.locked)});
@@ -902,7 +906,7 @@ if('IntersectionObserver' in window){new IntersectionObserver(function(en){stage
 /* ---------- save image ---------- */
 var DL=null,lastURL=null,lastCanvas=null,lastBlob=null;
 function getDL(){try{return window.claude&&window.claude.use?window.claude.use('downloads'):Promise.resolve(null)}catch(e){return Promise.resolve(null)}}
-setBtn($('#dl-save'),'download','Guardar en mi dispositivo');setBtn($('#dl-copy'),'copy','Copiar imagen');setBtn($('#dl-text'),'text','Copiar texto del menú para WhatsApp');
+setBtn($('#dl-save'),'download','Guardar en mi dispositivo');setBtn($('#dl-copy'),'copy','Copiar imagen');setBtn($('#dl-text'),'text','Copiar texto del menú para WhatsApp');setBtn($('#dl-video'),'eye','Guardar video del giro del logo');
 function closeDlg(){$('#dlg').hidden=true;mSave.focus()}
 function paintExport(g,kind,sc){
   if(kind==='story'){var s=1920/H,k=1080/W;g.setTransform(1,0,0,1,0,0);applyTheme();g.save();g.translate((1080-W*s)/2,0);g.scale(s,s);drawBG(g);g.restore();
@@ -930,6 +934,7 @@ function openSave(){
 mSave.addEventListener('click',openSave);
 $('#dl-close').addEventListener('click',closeDlg);
 $('#dl-fmt').addEventListener('change',function(){openSave()});
+$('#dl-video').addEventListener('click',function(){recordSpin(VIDSEL)});
 $('#dlg').addEventListener('click',function(e){if(e.target.id==='dlg')closeDlg()});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#dlg').hidden)closeDlg()});
 function dlBlob(blob,name){var a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;a.rel='noopener';document.body.append(a);a.click();setTimeout(function(){a.remove();URL.revokeObjectURL(u)},4000)}
