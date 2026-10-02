@@ -182,7 +182,7 @@ textarea{width:100%;min-height:150px;border:2px solid var(--line);border-radius:
       <button class="btn" id="dl-copy" type="button" style="flex:1"></button>
     </div>
     <button class="btn" id="dl-video" type="button"></button>
-    <p class="tip" id="dl-vtip">Video del giro: lo que elijas en la tarjeta "Temas, letras, historia y video" (por defecto 1 vuelta del logo, formato historia).</p>
+    <p class="tip" id="dl-vtip">Video del giro: lo que elijas en la tarjeta "Temas, letras, historia y video" (por defecto: el logo gira solo, luego aparece el menú del día completo; formato historia).</p>
     <button class="btn" id="dl-text" type="button"></button>
     <textarea id="dl-area" readonly hidden aria-label="Texto del menú para copiar"></textarea>
     <p class="tip">Si el botón no funciona, mantén presionada la imagen (o clic derecho) y elige <strong>Guardar imagen</strong>.</p>
@@ -243,7 +243,8 @@ var THEMES=[['clasico','Clásico (rojo y amarillo)',null],
 ['navidad','Navidad (verde y dorado)',{'#C4121F':'#1F7A3F','#B5121B':'#14562B','#B90F22':'#175F31','#F0404F':'#3FA660','#D8142B':'#E03A3A','#FFC928':'#F4D35E',wood:'rgba(10,40,20,.28)'}],
 ['madres','Día de las Madres (rosa)',{'#C4121F':'#C2185B','#B5121B':'#8E1244','#B90F22':'#A3154F','#F0404F':'#EC5E96','#D8142B':'#FF4F9A','#FFC928':'#FFD6E8',wood:'rgba(120,20,70,.30)'}],
 ['fiestas','Fiestas Patronales (azul y oro)',{'#C4121F':'#1B4FA0','#B5121B':'#123873','#B90F22':'#143F86','#F0404F':'#4F83D6','#D8142B':'#E03A3A','#FFC928':'#F2B01E',wood:'rgba(10,30,80,.25)'}]];
-var THEME=null;
+var THEME=null,ANIM=null;
+function ap(k,ph){return ANIM?Math.sin(ANIM.t/k+ph):0}
 function TH(c){return THEME&&THEME[c]||c}
 function applyTheme(){var n=S.b.extras&&S.b.extras.theme;THEME=null;for(var i=0;i<THEMES.length;i++)if(THEMES[i][0]===n)THEME=THEMES[i][2]}
 function themeLabel(n){for(var i=0;i<THEMES.length;i++)if(THEMES[i][0]===n)return 'Tema: '+THEMES[i][1].split(' (')[0];return ''}
@@ -348,7 +349,7 @@ function phoneIcon(c,x,y,r){c.save();c.beginPath();c.arc(x,y,r,0,7);c.fillStyle=
   c.strokeStyle='#fff';c.fillStyle='#fff';c.lineCap='round';c.lineWidth=r*.24;c.beginPath();c.arc(x+r*.2,y-r*.2,r*.5,Math.PI*.5,Math.PI);c.stroke();
   c.beginPath();c.arc(x+r*.2,y+r*.3,r*.16,0,7);c.fill();c.beginPath();c.arc(x-r*.3,y-r*.2,r*.16,0,7);c.fill();c.restore()}
 function sun(c,cx,cy,r){c.save();c.strokeStyle='#FFD21F';c.lineCap='round';c.lineWidth=r*.2;c.shadowColor='rgba(0,0,0,.3)';c.shadowBlur=4;c.shadowOffsetY=2;
-  for(var i=0;i<12;i++){var a=i/12*Math.PI*2+.1;c.beginPath();c.moveTo(cx+Math.cos(a)*r*1.4,cy+Math.sin(a)*r*1.4);c.lineTo(cx+Math.cos(a)*r*(i%2?1.75:2),cy+Math.sin(a)*r*(i%2?1.75:2));c.stroke()}
+  for(var i=0;i<12;i++){var a=i/12*Math.PI*2+.1+(ANIM?ANIM.t*.0007:0);c.beginPath();c.moveTo(cx+Math.cos(a)*r*1.4,cy+Math.sin(a)*r*1.4);c.lineTo(cx+Math.cos(a)*r*(i%2?1.75:2)*(1+ap(260,i)*.1),cy+Math.sin(a)*r*(i%2?1.75:2)*(1+ap(260,i)*.1));c.stroke()}
   c.shadowColor='transparent';var g=c.createRadialGradient(cx-r*.3,cy-r*.3,r*.1,cx,cy,r);g.addColorStop(0,'#FFE95C');g.addColorStop(1,'#FFC000');
   c.beginPath();c.arc(cx,cy,r,0,7);c.fillStyle=g;c.fill();c.lineWidth=3;c.strokeStyle='#B37B00';c.stroke();
   c.fillStyle='#4A2600';c.beginPath();c.ellipse(cx-r*.33,cy-r*.15,r*.07,r*.12,0,0,7);c.fill();c.beginPath();c.ellipse(cx+r*.33,cy-r*.15,r*.07,r*.12,0,0,7);c.fill();
@@ -359,8 +360,8 @@ function leaves(c,x,y,s,flip){c.save();c.translate(x,y);c.scale(flip?-1:1,1);
   [[-.95,1],[-.25,1.18],[.5,.95]].forEach(function(p){c.save();c.rotate(p[0]);c.fillStyle='#2E9B3C';c.strokeStyle='#1B5E24';c.lineWidth=2.2;c.beginPath();c.moveTo(0,0);c.quadraticCurveTo(s*.3*p[1],-s*.5*p[1],0,-s*p[1]);c.quadraticCurveTo(-s*.3*p[1],-s*.5*p[1],0,0);c.fill();c.stroke();
     c.strokeStyle='rgba(255,255,255,.35)';c.lineWidth=1.6;c.beginPath();c.moveTo(0,-s*.1);c.lineTo(0,-s*.8*p[1]);c.stroke();c.restore()});c.restore()}
 function sparkFan(c,x,y,deg){if(!S.b.deco.sparks)return;c.save();c.strokeStyle=TH('#FFC928');c.lineCap='round';c.lineWidth=8;
-  [-34,0,34].forEach(function(o){var a=(deg+o)*Math.PI/180,L=o?38:48;c.beginPath();c.moveTo(x+Math.cos(a)*14,y+Math.sin(a)*14);c.lineTo(x+Math.cos(a)*L,y+Math.sin(a)*L);c.stroke()});c.restore()}
-function heartIcon(c,x,y,s){var d=S.b.deco;if(!d.hearts)return;if(d.img){var im=getImg('heart',d.img);if(im)fitImg(c,im,x,y,s*1.6,s*1.6,false);return}heart(c,x,y,s,TH('#D8142B'))}
+  [-34,0,34].forEach(function(o){var a=(deg+o)*Math.PI/180,L=(o?38:48)*(1+ap(200,x*.05+o)*.22);c.beginPath();c.moveTo(x+Math.cos(a)*14,y+Math.sin(a)*14);c.lineTo(x+Math.cos(a)*L,y+Math.sin(a)*L);c.stroke()});c.restore()}
+function heartIcon(c,x,y,s){var d=S.b.deco;if(!d.hearts)return;if(d.img){var im=getImg('heart',d.img);if(im)fitImg(c,im,x,y,s*1.6,s*1.6,false);return}heart(c,x,y,s*(1+ap(240,x*.03)*.14),TH('#D8142B'))}
 
 /* ---------- images ---------- */
 var IMGS={};
@@ -624,8 +625,13 @@ function bounds(d,st){var t=xf(d,st),w=d.box[2]*st.s,h=d.box[3]*st.s;return{x:t.
 var selected=null,BADGES={},guidesOn=true;
 function drawAll(c,o){
   applyTheme();if(!o.noBG)drawBG(c);
-  BLOCKS.forEach(function(d){var st=S.b[d.id];if(!st.on)return;var t=xf(d,st);
-    c.save();c.translate(t.tx,t.ty);c.scale(st.s,st.s);c.translate(-t.cx,-t.cy);setBlockFont(FONT_IDS[d.id]?st.font:'');(d.id!=='logo'&&SPIN[d.id]&&(st.d3||st.rot||st.shine)?spinDraw(c,d,st):d.draw(c,st,d));setBlockFont('');c.restore()});
+  BLOCKS.forEach(function(d){var st=S.b[d.id];if(!st.on)return;var t=xf(d,st),tx=t.tx,ty=t.ty,sk=1,al=1,sw=0;
+    if(ANIM){var rv=ANIM.rv&&ANIM.rv[d.id];if(rv!=null){if(rv<=0)return;al=rv;ty+=(1-rv)*36}
+      if(d.id==='logo'&&ANIM.logoK){tx+=(ANIM.cx-t.cx)*ANIM.logoK;ty+=(ANIM.cy-t.cy)*ANIM.logoK;sk=1+(ANIM.big-1)*ANIM.logoK}
+      if(d.id.indexOf('leaf')===0)sw=.07*Math.sin(ANIM.t/380+d.id.charCodeAt(4)*2);
+      if(d.id==='flower')sw=ANIM.t*.0012;
+      if(d.id==='badge')sk=1+.05*Math.sin(ANIM.t/260)}
+    c.save();c.globalAlpha=al;c.translate(tx,ty);c.rotate(sw);c.scale(st.s*sk,st.s*sk);c.translate(-t.cx,-t.cy);setBlockFont(FONT_IDS[d.id]?st.font:'');(d.id!=='logo'&&SPIN[d.id]&&(st.d3||st.rot||st.shine)?spinDraw(c,d,st):d.draw(c,st,d));setBlockFont('');c.restore()});
   if(o.guides)drawGuides(c,o.ds)}
 function drawGuides(c,ds){
   BADGES={};
@@ -643,7 +649,7 @@ function drawGuides(c,ds){
 /* ---------- render / layout ---------- */
 var cv=$('#cv'),mode='edit',dragOn=false,raf=0,drag=null,WARNS={};
 function render(){if(raf)return;raf=requestAnimationFrame(function(){raf=0;paint()})}
-function paint(){var k=cv.width/W,c=cv.getContext('2d');c.setTransform(k,0,0,k,0,0);c.clearRect(0,0,W,H);
+function paint(){if(recording)return;var k=cv.width/W,c=cv.getContext('2d');c.setTransform(k,0,0,k,0,0);c.clearRect(0,0,W,H);
   drawAll(c,{guides:mode==='edit'&&guidesOn,ds:cv.clientWidth/W||.4});updWarns()}
 function fitCanvas(){
   var wrap=$('#flyerwrap'),avail=wrap.clientWidth||320,wcss=avail;
@@ -793,21 +799,28 @@ function pressRow(b,label,opts,get,set){b.append(el('span',{class:'lab',text:lab
 function applyPack(v,st){var p=PACKS.filter(function(x){return x[0]===v})[0][2];st.pack=v;var ids=Object.keys(FONT_IDS);ids.forEach(function(id){S.b[id].font=p[id]||''});
   Promise.all(ids.map(function(id){return ensureFont(S.b[id].font)})).then(function(){render()});ids.forEach(function(id){rebuildCard(id)});changed();toast('Letras cambiadas. Cada cuadro todavía se puede ajustar en su tarjeta.')}
 var SPIN_SETS=[['logo','Solo el logo'],['sun','Solo el sol'],['clock','Solo el reloj'],['phone','Solo el ícono del teléfono'],['flower','Solo la flor'],['all','El logo y todos los íconos a la vez']];
-var recording=false,VIDSEL={set:'logo',fmt:'story',turns:1,dir:1,fx:'3d',speed:0};
+var recording=false,VIDSEL={set:'logo',fmt:'story',turns:1,dir:1,fx:'3d',speed:0,reveal:1};
 function recordSpin(o){
   if(recording)return;if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){toast('Este navegador no puede grabar video. Usa Google Chrome.');return}
-  var all=['logo','sun','clock','phone','flower','leaf1','leaf2','leaf3'],ids=(o.set==='all'?all:[o.set]).filter(function(id){return S.b[id]&&S.b[id].on});
+  var all=['logo','sun','clock','phone','flower','leaf1','leaf2','leaf3'],ids=(o.set==='all'?(o.reveal?['logo']:all):[o.set]).filter(function(id){return S.b[id]&&S.b[id].on});
   if(!ids.length){toast('Eso está oculto. Márcalo como Mostrar para poder grabarlo.');return}
   var story=o.fmt==='story',cw=story?1080:1024,ch=story?1920:1536,cvR=cvOf(cw,ch),g=cvR.getContext('2d'),types=['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'],mt='',i;
   for(i=0;i<types.length;i++)if(MediaRecorder.isTypeSupported(types[i])){mt=types[i];break}
   var rec;try{rec=new MediaRecorder(cvR.captureStream(30),mt?{mimeType:mt,videoBitsPerSecond:6000000}:undefined)}catch(e){toast('No pude iniciar la grabación en este navegador.');return}
-  var chunks=[],saved=ids.map(function(id){return S.b[id].rot||0}),dur=(o.speed||S.b[ids[0]].spd||1.8)*1000*o.turns,fxs=ids.map(function(id){return[S.b[id].d3,S.b[id].shine]}),hold=600,total=dur+hold*2,t0=0;
-  function restore(){ids.forEach(function(id,k){S.b[id].rot=saved[k];S.b[id].d3=fxs[k][0];S.b[id].shine=fxs[k][1]});recording=false;render();updBtn()}
+  var chunks=[],saved=ids.map(function(id){return S.b[id].rot||0}),dur=(o.speed||S.b[ids[0]].spd||1.8)*1000*o.turns,fxs=ids.map(function(id){return[S.b[id].d3,S.b[id].shine]}),hold=600,t0=0,
+      ORD=['greeting','sun','ribbon','tagline','date','menu','sandwiches','tripletas','complementos','almuerzos','clock','order','phone','footer'],
+      rvIds=o.reveal?BLOCKS.map(function(d){return d.id}).filter(function(id){return ids.indexOf(id)<0&&S.b[id].on}).sort(function(a,b){var x=ORD.indexOf(a),y=ORD.indexOf(b);return(x<0?99:x)-(y<0?99:y)}):[],
+      tR=hold+dur,stag=120,rvDur=o.reveal?(700+rvIds.length*stag+500):0,total=hold+dur+rvDur+(o.reveal?1800:600),logoSpun=ids.indexOf('logo')>=0;
+  function restore(){ANIM=null;ids.forEach(function(id,k){S.b[id].rot=saved[k];S.b[id].d3=fxs[k][0];S.b[id].shine=fxs[k][1]});recording=false;render();updBtn()}
   rec.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
   rec.onstop=function(){restore();var blob=new Blob(chunks,{type:mt||'video/webm'});if(!blob.size){toast('La grabación salió vacía. Intenta otra vez.');return}
     dlBlob(blob,'fondita-giro-'+S.b.date.iso+'.'+(/mp4/.test(mt)?'mp4':'webm'));toast(/mp4/.test(mt)?'Video listo en tus Descargas (MP4).':'Video listo en tus Descargas (WebM). Si WhatsApp no lo acepta, conviértelo a MP4.')};
   function frame(now){try{if(!t0)t0=now;var e=now-t0,p=Math.min(1,Math.max(0,(e-hold)/dur));
       ids.forEach(function(id,k){var v=saved[k]+o.dir*360*o.turns*p;S.b[id].rot=((v+180)%360+360)%360-180});
+      var ez=function(x){x=Math.min(1,Math.max(0,x));return x*x*(3-2*x)};
+      ANIM={t:e,rv:{},logoK:0,cx:W/2,cy:H*.45,big:2};
+      if(o.reveal){rvIds.forEach(function(id,j){ANIM.rv[id]=e<tR?0:ez((e-tR-500-j*stag)/450)});
+        if(logoSpun)ANIM.logoK=e<tR?1:1-ez((e-tR)/700)}
       g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cw,ch);paintExport(g,o.fmt,cw/W);updBtn(Math.min(100,Math.round(e/total*100)));
       if(e<total)requestAnimationFrame(frame);else rec.stop()}catch(err){try{rec.stop()}catch(x){}restore();toast('Algo falló al grabar. Intenta otra vez.')}}
   if(o.fx==='3d')ids.forEach(function(id){S.b[id].d3=true;S.b[id].shine=true});recording=true;updBtn(0);rec.start();toast('Grabando ('+Math.round(total/1000)+' s). No cambies de pestaña.');requestAnimationFrame(frame);
@@ -825,7 +838,7 @@ function extrasUI(b,st){
   function mkSel(label,opts,key,num){var id=uid(),s=el('select',{id:id});opts.forEach(function(o){s.append(el('option',{value:o[0],text:o[1]}))});s.value=sel[key];
     s.addEventListener('change',function(){sel[key]=num?+s.value:s.value});return el('div',{class:'styl'},el('label',{for:id,class:'lab',text:label}),s)}
   b.append(el('span',{class:'lab',text:'5. Video del giro (para estados o redes). La velocidad se escoge en la tarjeta de cada ícono.'}),
-    mkSel('Qué gira',SPIN_SETS,'set'),mkSel('Formato',[['story','Historia 9:16'],['flyer','Flyer 2:3']],'fmt'),mkSel('Vueltas',[[1,'1 vuelta'],[2,'2 vueltas'],[3,'3 vueltas']],'turns',true),mkSel('Sentido',[[1,'Izquierda ↺'],[-1,'Derecha ↻']],'dir',true),mkSel('Efecto',[['3d','3D con grosor y destello (recomendado)'],['flat','Giro plano simple']],'fx'),mkSel('Velocidad del video',[[0,'La que tenga el logo']].concat(SPEEDS),'speed',true),
+    mkSel('Qué gira',SPIN_SETS,'set'),mkSel('Formato',[['story','Historia 9:16'],['flyer','Flyer 2:3']],'fmt'),mkSel('Vueltas',[[1,'1 vuelta'],[2,'2 vueltas'],[3,'3 vueltas']],'turns',true),mkSel('Sentido',[[1,'Izquierda ↺'],[-1,'Derecha ↻']],'dir',true),mkSel('Final del video',[[1,'Mostrar el menú del día completo, con el logo de frente'],[0,'Terminar justo después del giro']],'reveal',true),mkSel('Efecto',[['3d','3D con grosor y destello (recomendado)'],['flat','Giro plano simple']],'fx'),mkSel('Velocidad del video',[[0,'La que tenga el logo']].concat(SPEEDS),'speed',true),
     el('button',{type:'button',class:'btn primary',id:'vid-go',onclick:function(){recordSpin(sel)}},icon('eye'),'Grabar video del giro'),el('p',{class:'tip',text:'El video baja a tus Descargas. En Chrome sale en MP4. Dura unos segundos y no debes cambiar de pestaña mientras graba.'}))}
 UI.extras=extrasUI;
 function styleUI(body,st,id){
