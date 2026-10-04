@@ -18,3 +18,4 @@ Tarjeta **Temas, letras, historia y video**: temas de color (Navidad, Día de la
 ## Para quien administra el repositorio
 - El archivo principal es `index.html` (todo el programa en un solo archivo).
 - Para actualizar: en GitHub abre el repositorio, **Add file → Upload files**, sube el nuevo `index.html` con el mismo nombre y presiona **Commit changes**. La página se actualiza sola en 1 a 2 minutos.
+- **Video como logo (opcional):** en la tarjeta *Logo* se puede subir un video corto. Para que todos lo vean sin subirlo, guarda un video llamado `logo.mp4` en este repositorio junto a `index.html`: la página lo carga sola al abrirse.
