@@ -181,6 +181,7 @@ textarea{width:100%;min-height:150px;border:2px solid var(--line);border-radius:
       <button class="btn primary" id="dl-save" type="button" style="flex:1"></button>
       <button class="btn" id="dl-copy" type="button" style="flex:1"></button>
     </div>
+    <div class="styl"><label class="lab" for="dl-vmode">Qué grabar en el video</label><select id="dl-vmode"><option value="spin">Girar el logo (imagen o video, el que esté puesto)</option><option value="play">Solo reproducir el video del logo, sin girar</option><option value="image">Girar solo la imagen del logo (sin el video)</option></select></div>
     <button class="btn" id="dl-video" type="button"></button>
     <p class="tip" id="dl-vtip">Video del giro: lo que elijas en la tarjeta "Temas, letras, historia y video" (por defecto: el logo gira solo, luego aparece el menú del día completo; formato historia).</p>
     <button class="btn" id="dl-text" type="button"></button>
@@ -478,9 +479,10 @@ function draw3D(c,src,w,h,cx,cy,st){
   c.restore()}
 function spinDraw(c,d,st){var b=d.box,pad=36,k=2,sw=b[2]+pad*2,sh=b[3]+pad*2,src=cvOf(sw*k,sh*k),g=src.getContext('2d');g.setTransform(k,0,0,k,0,0);g.translate(pad-b[0],pad-b[1]);d.draw(g,st,d);draw3D(c,src,sw,sh,b[0]+b[2]/2,b[1]+b[3]/2,st)}
 /* ---- video como logo (no se guarda en el JSON; vive en la página) ---- */
-var LVID=null,LVC=null,lvLoop=0,lvT=0;
+var LVID=null,LVC=null,lvLoop=0,lvT=0,LVOFF=false;
 function logoSrc(st){
-  if(LVID&&LVID.readyState>=2&&LVID.videoWidth){var vw=LVID.videoWidth,vh=LVID.videoHeight,sc=Math.min(1,800/Math.max(vw,vh)),sh=st.vshape||'round',w=Math.round(vw*sc),h=Math.round(vh*sc);
+  if(LVID&&!LVOFF&&!(LVID.readyState>=2&&LVID.videoWidth))return LVC||null;
+  if(LVID&&!LVOFF&&LVID.readyState>=2&&LVID.videoWidth){var vw=LVID.videoWidth,vh=LVID.videoHeight,sc=Math.min(1,800/Math.max(vw,vh)),sh=st.vshape||'round',w=Math.round(vw*sc),h=Math.round(vh*sc);
     if(sh==='circle'){w=h=Math.min(w,h)}
     if(!LVC||LVC.width!==w||LVC.height!==h){LVC=cvOf(w,h)}LVC.naturalWidth=w;LVC.naturalHeight=h;
     var g=LVC.getContext('2d'),bw=Math.max(5,Math.min(w,h)*.018);g.clearRect(0,0,w,h);g.save();
@@ -829,31 +831,37 @@ function pressRow(b,label,opts,get,set){b.append(el('span',{class:'lab',text:lab
 function applyPack(v,st){var p=PACKS.filter(function(x){return x[0]===v})[0][2];st.pack=v;var ids=Object.keys(FONT_IDS);ids.forEach(function(id){S.b[id].font=p[id]||''});
   Promise.all(ids.map(function(id){return ensureFont(S.b[id].font)})).then(function(){render()});ids.forEach(function(id){rebuildCard(id)});changed();toast('Letras cambiadas. Cada cuadro todavía se puede ajustar en su tarjeta.')}
 var SPIN_SETS=[['logo','Solo el logo'],['sun','Solo el sol'],['clock','Solo el reloj'],['phone','Solo el ícono del teléfono'],['flower','Solo la flor'],['all','El logo y todos los íconos a la vez']];
-var recording=false,VIDSEL={set:'logo',fmt:'story',turns:1,dir:1,fx:'3d',speed:0,reveal:1};
+var recording=false,VIDSEL={mode:'spin',set:'logo',fmt:'story',turns:1,dir:1,fx:'3d',speed:0,reveal:1};
 function recordSpin(o){
-  if(recording)return;if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){toast('Este navegador no puede grabar video. Usa Google Chrome.');return}
+  if(recording)return;o=Object.assign({mode:'spin'},o);
+  if(o.mode!=='spin')o=Object.assign({},o,{set:'logo'});
+  if(o.mode==='play'&&!LVID){toast('Primero sube un video en la tarjeta Logo.');return}
+  var tn=o.mode==='play'?0:o.turns;if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){toast('Este navegador no puede grabar video. Usa Google Chrome.');return}
   var all=['logo','sun','clock','phone','flower','leaf1','leaf2','leaf3'],ids=(o.set==='all'?(o.reveal?['logo']:all):[o.set]).filter(function(id){return S.b[id]&&S.b[id].on});
   if(!ids.length){toast('Eso está oculto. Márcalo como Mostrar para poder grabarlo.');return}
   var story=o.fmt==='story',cw=story?1080:1024,ch=story?1920:1536,cvR=cvOf(cw,ch),g=cvR.getContext('2d'),types=['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'],mt='',i;
   for(i=0;i<types.length;i++)if(MediaRecorder.isTypeSupported(types[i])){mt=types[i];break}
   var rec;try{rec=new MediaRecorder(cvR.captureStream(30),mt?{mimeType:mt,videoBitsPerSecond:6000000}:undefined)}catch(e){toast('No pude iniciar la grabación en este navegador.');return}
-  var chunks=[],saved=ids.map(function(id){return S.b[id].rot||0}),dur=(o.speed||S.b[ids[0]].spd||1.8)*1000*o.turns,fxs=ids.map(function(id){return[S.b[id].d3,S.b[id].shine]}),hold=600,t0=0,
+  var chunks=[],saved=ids.map(function(id){return S.b[id].rot||0}),dur=o.mode==='play'?Math.min(15000,Math.max(3000,((LVID&&LVID.duration)||4)*1000)):(o.speed||S.b[ids[0]].spd||1.8)*1000*tn,fxs=ids.map(function(id){return[S.b[id].d3,S.b[id].shine]}),hold=600,t0=0,
       ORD=['greeting','sun','ribbon','tagline','date','menu','sandwiches','tripletas','complementos','almuerzos','clock','order','phone','footer'],
       rvIds=o.reveal?BLOCKS.map(function(d){return d.id}).filter(function(id){return ids.indexOf(id)<0&&S.b[id].on}).sort(function(a,b){var x=ORD.indexOf(a),y=ORD.indexOf(b);return(x<0?99:x)-(y<0?99:y)}):[],
       tR=hold+dur,stag=120,rvDur=o.reveal?(700+rvIds.length*stag+500):0,total=hold+dur+rvDur+(o.reveal?1800:600),logoSpun=ids.indexOf('logo')>=0;
-  function restore(){ANIM=null;ids.forEach(function(id,k){S.b[id].rot=saved[k];S.b[id].d3=fxs[k][0];S.b[id].shine=fxs[k][1]});recording=false;render();updBtn()}
+  function restore(){ANIM=null;LVOFF=false;ids.forEach(function(id,k){S.b[id].rot=saved[k];S.b[id].d3=fxs[k][0];S.b[id].shine=fxs[k][1]});recording=false;render();updBtn()}
   rec.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
   rec.onstop=function(){restore();var blob=new Blob(chunks,{type:mt||'video/webm'});if(!blob.size){toast('La grabación salió vacía. Intenta otra vez.');return}
     dlBlob(blob,'fondita-giro-'+S.b.date.iso+'.'+(/mp4/.test(mt)?'mp4':'webm'));toast(/mp4/.test(mt)?'Video listo en tus Descargas (MP4).':'Video listo en tus Descargas (WebM). Si WhatsApp no lo acepta, conviértelo a MP4.')};
   function frame(now){try{if(!t0)t0=now;var e=now-t0,p=Math.min(1,Math.max(0,(e-hold)/dur));
-      ids.forEach(function(id,k){var v=saved[k]+o.dir*360*o.turns*p;S.b[id].rot=((v+180)%360+360)%360-180});
+      ids.forEach(function(id,k){var v=saved[k]+o.dir*360*tn*p;S.b[id].rot=((v+180)%360+360)%360-180});
       var ez=function(x){x=Math.min(1,Math.max(0,x));return x*x*(3-2*x)};
       ANIM={t:e,rv:{},logoK:0,cx:W/2,cy:H*.45,big:2};
       if(o.reveal){rvIds.forEach(function(id,j){ANIM.rv[id]=e<tR?0:ez((e-tR-500-j*stag)/450)});
         if(logoSpun)ANIM.logoK=e<tR?1:1-ez((e-tR)/700)}
       g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cw,ch);paintExport(g,o.fmt,cw/W);updBtn(Math.min(100,Math.round(e/total*100)));
       if(e<total)requestAnimationFrame(frame);else rec.stop()}catch(err){try{rec.stop()}catch(x){}restore();toast('Algo falló al grabar. Intenta otra vez.')}}
-  if(o.fx==='3d')ids.forEach(function(id){S.b[id].d3=true;S.b[id].shine=true});if(LVID){try{LVID.currentTime=0;LVID.play()}catch(x){}}recording=true;updBtn(0);rec.start();toast('Grabando ('+Math.round(total/1000)+' s). No cambies de pestaña.');requestAnimationFrame(frame);
+  if(o.fx==='3d'&&o.mode!=='play')ids.forEach(function(id){S.b[id].d3=true;S.b[id].shine=true});
+  if(o.mode==='image')LVOFF=true;
+  function begin(){recording=true;updBtn(0);rec.start();toast('Grabando ('+Math.round(total/1000)+' s). No cambies de pestaña.');requestAnimationFrame(frame)}
+  if(LVID&&o.mode!=='image'){var done=0,go=function(){if(done)return;done=1;try{LVID.play()}catch(x){}begin()};LVID.pause();LVID.addEventListener('seeked',go,{once:true});setTimeout(go,500);LVID.currentTime=0}else begin();
   function updBtn(pct){['#vid-go','#dl-video'].forEach(function(q){var bt=$(q);if(!bt)return;bt.disabled=recording;var t=bt.lastChild;if(!t)return;if(!bt.dataset.l)bt.dataset.l=t.textContent;t.textContent=recording?'Grabando… '+(pct||0)+'%':bt.dataset.l})}}
 function extrasUI(b,st){
   b.append(el('p',{class:'tip',text:'Todo es opcional: toca lo que quieras usar. Se puede quitar o cambiar cuando quieras.'}));
@@ -868,7 +876,7 @@ function extrasUI(b,st){
   function mkSel(label,opts,key,num){var id=uid(),s=el('select',{id:id});opts.forEach(function(o){s.append(el('option',{value:o[0],text:o[1]}))});s.value=sel[key];
     s.addEventListener('change',function(){sel[key]=num?+s.value:s.value});return el('div',{class:'styl'},el('label',{for:id,class:'lab',text:label}),s)}
   b.append(el('span',{class:'lab',text:'5. Video del giro (para estados o redes). La velocidad se escoge en la tarjeta de cada ícono.'}),
-    mkSel('Qué gira',SPIN_SETS,'set'),mkSel('Formato',[['story','Historia 9:16'],['flyer','Flyer 2:3']],'fmt'),mkSel('Vueltas',[[1,'1 vuelta'],[2,'2 vueltas'],[3,'3 vueltas']],'turns',true),mkSel('Sentido',[[1,'Izquierda ↺'],[-1,'Derecha ↻']],'dir',true),mkSel('Final del video',[[1,'Mostrar el menú del día completo, con el logo de frente'],[0,'Terminar justo después del giro']],'reveal',true),mkSel('Efecto',[['3d','3D con grosor y destello (recomendado)'],['flat','Giro plano simple']],'fx'),mkSel('Velocidad del video',[[0,'La que tenga el logo']].concat(SPEEDS),'speed',true),
+    mkSel('Qué gira',SPIN_SETS,'set'),mkSel('Formato',[['story','Historia 9:16'],['flyer','Flyer 2:3']],'fmt'),mkSel('Vueltas',[[1,'1 vuelta'],[2,'2 vueltas'],[3,'3 vueltas']],'turns',true),mkSel('Sentido',[[1,'Izquierda ↺'],[-1,'Derecha ↻']],'dir',true),mkSel('Qué grabar',[['spin','Girar el logo (imagen o video, el que esté puesto)'],['play','Solo reproducir el video del logo, sin girar'],['image','Girar solo la imagen del logo (sin el video)']],'mode'),mkSel('Final del video',[[1,'Mostrar el menú del día completo, con el logo de frente'],[0,'Terminar justo después del giro']],'reveal',true),mkSel('Efecto',[['3d','3D con grosor y destello (recomendado)'],['flat','Giro plano simple']],'fx'),mkSel('Velocidad del video',[[0,'La que tenga el logo']].concat(SPEEDS),'speed',true),
     el('button',{type:'button',class:'btn primary',id:'vid-go',onclick:function(){recordSpin(sel)}},icon('eye'),'Grabar video del giro'),el('p',{class:'tip',text:'El video baja a tus Descargas. En Chrome sale en MP4. Dura unos segundos y no debes cambiar de pestaña mientras graba.'}))}
 UI.extras=extrasUI;
 function styleUI(body,st,id){
@@ -969,7 +977,7 @@ function menuText(){
 function openSave(){
   makeExport($('#dl-fmt').value).then(function(b){if(!b){toast('No pude crear la imagen. Intenta otra vez.');return}
     lastBlob=b;if(lastURL)URL.revokeObjectURL(lastURL);lastURL=URL.createObjectURL(b);$('#dlgimg').src=lastURL;
-    var w=$('#dlgwarn'),d=S.b.date;$('#dl-area').hidden=true;
+    $('#dl-vmode').value=VIDSEL.mode;var w=$('#dlgwarn'),d=S.b.date;$('#dl-area').hidden=true;
     if(d.on&&d.iso!==todayISO()){w.hidden=false;w.textContent='';w.append(el('span',{text:'Ojo: la fecha del menú es '+fmtDate(d.iso)+' y hoy no es ese día. '}),
       el('button',{type:'button',class:'tbtn',style:'color:inherit',text:'Poner la fecha de hoy',onclick:function(){S.b.date.iso=todayISO();rebuildCard('date');changed();openSave()}}))}
     else w.hidden=true;
@@ -977,7 +985,9 @@ function openSave(){
 mSave.addEventListener('click',openSave);
 $('#dl-close').addEventListener('click',closeDlg);
 $('#dl-fmt').addEventListener('change',function(){openSave()});
+$('#dl-vmode').value=VIDSEL.mode;
 $('#dl-video').addEventListener('click',function(){recordSpin(VIDSEL)});
+$('#dl-vmode').addEventListener('change',function(){VIDSEL.mode=this.value});
 $('#dlg').addEventListener('click',function(e){if(e.target.id==='dlg')closeDlg()});
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#dlg').hidden)closeDlg()});
 function dlBlob(blob,name){var a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;a.rel='noopener';document.body.append(a);a.click();setTimeout(function(){a.remove();URL.revokeObjectURL(u)},4000)}
